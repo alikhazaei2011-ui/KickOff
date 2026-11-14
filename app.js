@@ -94,7 +94,6 @@ extraStyles.textContent = `
   color: #a3ff4f;
   font-size: 11px;
 }
-
 `;
 document.head.appendChild(extraStyles);
 
@@ -103,7 +102,6 @@ document.head.appendChild(extraStyles);
 ===================================== */
 
 function createTournament() {
-
   const tournamentName = prompt("نام تورنمنت رو وارد کن:");
 
   if (tournamentName === null) return;
@@ -113,9 +111,7 @@ function createTournament() {
     return;
   }
 
-  const playerCount = Number(
-    prompt("تعداد بازیکنان رو وارد کن:")
-  );
+  const playerCount = Number(prompt("تعداد بازیکنان رو وارد کن:"));
 
   if (!Number.isInteger(playerCount) || playerCount < 2) {
     alert("تعداد بازیکنان باید حداقل ۲ نفر باشه.");
@@ -126,7 +122,6 @@ function createTournament() {
   let expectedTeamCount = null;
 
   for (let i = 0; i < playerCount; i++) {
-
     const playerName = prompt(
       `نام بازیکن شماره ${i + 1} رو وارد کن:`
     );
@@ -176,7 +171,6 @@ function createTournament() {
     });
   }
 
-  // جلوگیری از نام تکراری بازیکنان
   const names = players.map(p => p.name.toLowerCase());
 
   if (new Set(names).size !== names.length) {
@@ -198,11 +192,9 @@ function createTournament() {
   };
 
   const tournaments = getTournaments();
-
   tournaments.unshift(tournament);
 
   saveTournaments(tournaments);
-
   renderApp();
 
   alert("تورنمنت با موفقیت ساخته شد! ⚽");
@@ -213,9 +205,7 @@ function createTournament() {
 ===================================== */
 
 function renderTournaments() {
-
   const tournaments = getTournaments();
-
   const list = document.getElementById("tournamentList");
   const emptyState = document.getElementById("emptyState");
 
@@ -225,18 +215,14 @@ function renderTournaments() {
     tournaments.length === 0 ? "block" : "none";
 
   list.innerHTML = tournaments.map(tournament => {
-
     const playerNames = tournament.players
       .map(player => escapeHTML(player.name))
       .join("، ");
 
     return `
       <article class="tournament-card">
-
         <span class="tournament-tag">⚽ تورنمنت</span>
-
         <h3>${escapeHTML(tournament.name)}</h3>
-
         <p>
           👥 ${tournament.players.length} بازیکن
           <br>
@@ -244,14 +230,11 @@ function renderTournaments() {
           <br>
           📋 ${tournament.teamsPerPlayer} تیم برای هر بازیکن
         </p>
-
         <p class="team-preview">
           بازیکنان: ${playerNames}
         </p>
-
       </article>
     `;
-
   }).join("");
 }
 
@@ -260,9 +243,7 @@ function renderTournaments() {
 ===================================== */
 
 function renderChampions() {
-
   const champions = getChampions();
-
   const list = document.getElementById("championList");
 
   if (!list) return;
@@ -274,7 +255,6 @@ function renderChampions() {
     toPersian(champions.length);
 
   if (champions.length === 0) {
-
     list.innerHTML = `
       <div class="hall-empty">
         <div class="hall-trophy">🏆</div>
@@ -285,32 +265,24 @@ function renderChampions() {
         </p>
       </div>
     `;
-
   } else {
-
     list.innerHTML = champions.map(champion => `
       <article class="champion-card">
-
         <div class="champion-medal">🏆</div>
-
         <div class="champion-info">
           <h3>${escapeHTML(champion.player)}</h3>
-
           <p>
             تیم قهرمان:
             ${escapeHTML(champion.team)}
           </p>
-
           <div class="champion-edition">
             ${escapeHTML(champion.edition)}
           </div>
         </div>
-
       </article>
     `).join("");
   }
 
-  // محاسبه بیشترین قهرمانی
   const counts = {};
 
   champions.forEach(champion => {
@@ -336,21 +308,16 @@ function toPersian(number) {
 }
 
 function renderStatistics() {
-
   const tournaments = getTournaments();
-
   const playerNames = new Set();
-
   let matches = 0;
 
   tournaments.forEach(tournament => {
-
     tournament.players.forEach(player => {
       playerNames.add(player.name);
     });
 
     matches += tournament.matches?.length || 0;
-
   });
 
   document.getElementById("tournamentCount").textContent =
@@ -384,16 +351,27 @@ function renderApp() {
 
 document
   .getElementById("createTournament")
-  .addEventListener("click", createTournament);
+  ?.addEventListener("click", createTournament);
 
 document
   .getElementById("emptyCreate")
-  .addEventListener("click", createTournament);
+  ?.addEventListener("click", createTournament);
 
 /* =====================================
    INITIALIZE
 ===================================== */
 
 document.addEventListener("DOMContentLoaded", renderApp);
-
 renderApp();
+
+/* =====================================
+   OFFLINE SUPPORT - SERVICE WORKER
+===================================== */
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("KICKOFF offline ready"))
+      .catch(error => console.error("Service Worker:", error));
+  });
+}
