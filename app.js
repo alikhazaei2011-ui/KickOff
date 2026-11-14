@@ -1,3 +1,4 @@
+
 "use strict";
 
 const STORAGE_KEY = "kickoff_tournaments_v3";
@@ -44,7 +45,7 @@ function escapeHTML(value) {
 
 function icon(name, size = 24) {
   const paths = {
-    ball: '<circle cx="12" cy="12" r="9"/><path d="m12 3 2.8 4.2-1.1 4.1 4.1 2.9M3.8 8.5l4.5.2 3.7-2.5M5 17l3.4-3.2 4.2.4 2.8 4.1M19.5 6.5l-2 4.4 1.2 4.2M8 21l.4-4.8"/>',
+    ball: '<circle cx="12" cy="12" r="9" fill="none"/><path d="m12 3 2.2 3.4-1 3.7 3.7 2.7M4.2 8.2l4 .2 3.3-2.2M5 16.8l3-2.8 3.8.4 2.5 3.7M19.2 6.8l-1.8 4 1.1 3.8M8 21l.4-4.3" fill="none"/><path d="m12 8.2 3.2 2.2-1.2 3.8H10l-1.2-3.8L12 8.2Z" fill="currentColor" stroke="none" opacity=".18"/>',
     trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4M9 4V2h6v2"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     stadium: '<path d="M3 10 12 4l9 6v10H3V10Z"/><path d="M7 20v-6h10v6M7 10h.01M12 10h.01M17 10h.01"/>',
@@ -212,6 +213,17 @@ function allTeams(tournament) {
 
 function teamById(tournament, id) {
   return allTeams(tournament).find(team => team.id === id);
+}
+
+/* نمایش نام تیم همراه نام بازیکن */
+function displayTeamName(tournament, teamId, fallback = "در انتظار تیم") {
+  if (!teamId) return fallback;
+
+  const team = teamById(tournament, teamId);
+  if (!team) return fallback;
+
+  const playerName = team.playerName || "بدون بازیکن";
+  return `${team.name} (${playerName})`;
 }
 
 function createTournament(event) {
@@ -680,12 +692,9 @@ function saveMatchScore(matchId) {
 }
 
 function showWinnerChoices(tournament, match) {
-  const home = teamById(tournament, match.home);
-  const away = teamById(tournament, match.away);
-
   document.getElementById("winnerChoices").innerHTML = `
-    <button data-tie-winner="${match.home}">${escapeHTML(home?.name || "تیم اول")}</button>
-    <button data-tie-winner="${match.away}">${escapeHTML(away?.name || "تیم دوم")}</button>
+    <button data-tie-winner="${match.home}">${escapeHTML(displayTeamName(tournament, match.home, "تیم اول"))}</button>
+    <button data-tie-winner="${match.away}">${escapeHTML(displayTeamName(tournament, match.away, "تیم دوم"))}</button>
   `;
 
   openModal("winnerModal");
@@ -802,10 +811,8 @@ function finishTournament(tournament, championId, runnerUpId) {
 }
 
 function renderMatch(match, tournament) {
-  const home = teamById(tournament, match.home);
-  const away = teamById(tournament, match.away);
-  const homeName = home?.name || "استراحت";
-  const awayName = away?.name || "استراحت";
+  const homeName = displayTeamName(tournament, match.home, "استراحت");
+  const awayName = displayTeamName(tournament, match.away, "استراحت");
 
   if (match.bye) {
     return `
@@ -924,8 +931,8 @@ function renderBracket(tournament) {
                   const away = teamById(tournament, match.away);
                   const homeWinner = match.winner === match.home && !!match.winner;
                   const awayWinner = match.winner === match.away && !!match.winner;
-                  const homeName = home?.name || "در انتظار تیم";
-                  const awayName = away?.name || (match.bye ? "استراحت" : "در انتظار تیم");
+                  const homeName = displayTeamName(tournament, match.home, "در انتظار تیم");
+                  const awayName = displayTeamName(tournament, match.away, match.bye ? "استراحت" : "در انتظار تیم");
 
                   return `
                     <article class="bracket-match ${match.played ? "is-played" : ""} ${match.bye ? "is-bye" : ""}">
