@@ -297,3 +297,70 @@ tr.qualified td{color:var(--green);background:#b7ff5209}
   .match-cards{flex-direction:column}
   .card-team-label{width:auto;min-width:80px}
 }
+
+/* KICKOFF — Premium Match Inputs */
+
+.score-inputs input,
+.team-card-inputs input,
+.bracket-actions input {
+  background: linear-gradient(145deg, #1b2c40, #101c2b);
+  color: #f3f7fb;
+  border: 1px solid #3b5269;
+  border-radius: 10px;
+  font-family: "Vazirmatn", sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  box-shadow:
+    inset 0 1px 3px #ffffff08,
+    0 4px 12px #0003;
+  transition: border-color .2s ease,
+              box-shadow .2s ease,
+              background .2s ease;
+  outline: none;
+}
+
+.score-inputs input:hover,
+.team-card-inputs input:hover,
+.bracket-actions input:hover {
+  border-color: #71869b;
+  background: #1d3045;
+}
+
+.score-inputs input:focus,
+.team-card-inputs input:focus,
+.bracket-actions input:focus {
+  border-color: #b7ff52;
+  background: #172a35;
+  box-shadow:
+    0 0 0 3px #b7ff5218,
+    0 0 16px #b7ff5220;
+}
+
+.score-inputs input::placeholder,
+.team-card-inputs input::placeholder,
+.bracket-actions input::placeholder {
+  color: #718398;
+}
+
+.score-inputs input {
+  height: 40px;
+  font-size: 16px;
+  border-radius: 11px;
+}
+
+.team-card-inputs input {
+  height: 34px;
+  border-radius: 9px;
+}
+
+.bracket-actions input {
+  min-height: 35px;
+  border-radius: 9px;
+}
+
+.match-cards {
+  background: linear-gradient(135deg, #142438, #0d1928);
+  border: 1px solid #30465d;
+  border-radius: 13px;
+  box-shadow: inset 0 1px 0 #ffffff06;
+}
