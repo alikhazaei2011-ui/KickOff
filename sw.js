@@ -1,5 +1,4 @@
-
-const CACHE_NAME = "kickoff-v3";
+const CACHE_NAME = "kickoff-v4";
 
 const FILES_TO_CACHE = [
   "./",
@@ -23,9 +22,7 @@ self.addEventListener("activate", event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(key =>
-            key.startsWith("kickoff-") && key !== CACHE_NAME
-          )
+          .filter(key => key.startsWith("kickoff-") && key !== CACHE_NAME)
           .map(key => caches.delete(key))
       )
     ).then(() => self.clients.claim())
@@ -40,36 +37,20 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => cache.put("./index.html", copy));
-          }
-          return response;
-        })
-        .catch(async () =>
-          await caches.match("./index.html") || Response.error()
-        )
-    );
-    return;
-  }
-
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-
-      return fetch(request).then(response => {
+    fetch(request)
+      .then(response => {
         if (response.ok) {
           const copy = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => cache.put(request, copy));
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(request, copy);
+          });
         }
         return response;
-      });
-    })
+      })
+      .catch(async () => {
+        const cached = await caches.match(request);
+        return cached || Response.error();
+      })
   );
 });
