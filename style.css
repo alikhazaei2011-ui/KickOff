@@ -364,3 +364,31 @@ tr.qualified td{color:var(--green);background:#b7ff5209}
   border-radius: 13px;
   box-shadow: inset 0 1px 0 #ffffff06;
 }
+
+/* KICKOFF - FORCE DARK INPUTS */
+input,
+input[type="number"],
+input[type="text"],
+.score-inputs input,
+.team-card-inputs input,
+.bracket-actions input {
+  color-scheme: dark !important;
+  background: #142438 !important;
+  background-color: #142438 !important;
+  color: #f3f7fb !important;
+  border: 1px solid #49627b !important;
+  border-radius: 10px !important;
+  font-family: "Vazirmatn", sans-serif !important;
+  font-weight: 800 !important;
+  box-shadow: inset 0 1px 4px #ffffff08, 0 4px 12px #0003 !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:focus {
+  background: #192e3e !important;
+  border-color: #b7ff52 !important;
+  color: #ffffff !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px #b7ff5220 !important;
+}
