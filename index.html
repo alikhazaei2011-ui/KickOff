@@ -1,0 +1,171 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090e18">
+  <meta name="description" content="KICKOFF - مدیریت حرفه‌ای تورنمنت‌های فوتبال">
+  <title>KICKOFF | Football Tournament Manager</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-shell">
+
+    <header class="topbar">
+      <a class="brand" href="#">
+        <span class="brand-icon">K</span>
+        <span>KICK<span class="neon-text">OFF</span></span>
+      </a>
+
+      <div class="topbar-right">
+        <span class="status-dot"></span>
+        <span class="status-text">آماده مسابقه</span>
+        <button class="icon-btn" aria-label="تنظیمات">⚙</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+
+      <!-- HERO -->
+      <section class="hero">
+        <div class="hero-content">
+          <span class="eyebrow">FOOTBALL TOURNAMENT MANAGER</span>
+          <h1>وقتشه رقابت<br><span class="neon-text">شروع بشه!</span></h1>
+          <p>تورنمنت خودت رو بساز، تیم‌ها رو مدیریت کن و قهرمان رو مشخص کن.</p>
+          <button class="primary-btn" id="createTournament">
+            <span>+</span>
+            ساخت تورنمنت جدید
+          </button>
+        </div>
+
+        <div class="hero-ball" aria-hidden="true">
+          <div class="ball-ring"></div>
+          <div class="ball">⚽</div>
+        </div>
+
+        <div class="hero-glow"></div>
+      </section>
+
+      <!-- STATS -->
+      <section class="section-heading">
+        <div>
+          <span class="section-kicker">OVERVIEW</span>
+          <h2>نمای کلی</h2>
+        </div>
+        <span class="live-badge">● LIVE</span>
+      </section>
+
+      <section class="stats-grid">
+        <article class="stat-card">
+          <div class="stat-icon green">🏆</div>
+          <span class="stat-label">تورنمنت‌ها</span>
+          <strong id="tournamentCount">۰</strong>
+          <span class="stat-caption">کل مسابقات ساخته‌شده</span>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-icon blue">👥</div>
+          <span class="stat-label">بازیکنان</span>
+          <strong id="playerCount">۰</strong>
+          <span class="stat-caption">بازیکنان ثبت‌شده</span>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-icon orange">⚽</div>
+          <span class="stat-label">مسابقات</span>
+          <strong id="matchCount">۰</strong>
+          <span class="stat-caption">بازی‌های برگزارشده</span>
+        </article>
+      </section>
+
+      <!-- TOURNAMENTS -->
+      <section class="section-heading tournament-heading">
+        <div>
+          <span class="section-kicker">YOUR COMPETITIONS</span>
+          <h2>تورنمنت‌های من</h2>
+        </div>
+      </section>
+
+      <section class="empty-state" id="emptyState">
+        <div class="empty-icon">🏟️</div>
+        <h3>هنوز تورنمنتی نداری!</h3>
+        <p>اولین رقابت خودت رو بساز و وارد دنیای KICKOFF شو.</p>
+        <button class="secondary-btn" id="emptyCreate">
+          ساخت اولین تورنمنت
+        </button>
+      </section>
+
+      <section id="tournamentList" class="tournament-list"></section>
+
+      <!-- HALL OF FAME -->
+      <section class="hall-section">
+        <div class="section-heading">
+          <div>
+            <span class="section-kicker">LEGENDS NEVER DIE</span>
+            <h2>تالار قهرمانان</h2>
+            <p class="section-description">قهرمانان دوره‌های مختلف KICKOFF</p>
+          </div>
+          <div class="hall-icon">👑</div>
+        </div>
+
+        <div class="hall-summary">
+          <div>
+            <span>تعداد دوره‌های قهرمانی</span>
+            <strong id="editionCount">۰</strong>
+          </div>
+          <div>
+            <span>قهرمانان ثبت‌شده</span>
+            <strong id="championCount">۰</strong>
+          </div>
+        </div>
+
+        <div id="championList" class="champion-list">
+          <div class="hall-empty">
+            <div class="hall-trophy">🏆</div>
+            <h3>هنوز قهرمانی ثبت نشده!</h3>
+            <p>بعد از پایان اولین تورنمنت، نام قهرمان اینجا ثبت می‌شه.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- RECORDS -->
+      <section class="records-section">
+        <div class="section-heading">
+          <div>
+            <span class="section-kicker">ALL TIME RECORDS</span>
+            <h2>رکوردهای مسابقات</h2>
+          </div>
+          <span class="record-icon">📊</span>
+        </div>
+
+        <div class="record-grid">
+          <div class="record-card">
+            <span>بیشترین قهرمانی</span>
+            <strong id="topChampion">—</strong>
+          </div>
+          <div class="record-card">
+            <span>بیشترین حضور</span>
+            <strong id="topPlayer">—</strong>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <span>KICKOFF</span>
+      <span>MADE FOR CHAMPIONS ⚡</span>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
