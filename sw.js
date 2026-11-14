@@ -1,4 +1,4 @@
-const CACHE_NAME = "kickoff-v4";
+const CACHE_NAME = "kickoff-v5";
 
 const FILES_TO_CACHE = [
   "./",
