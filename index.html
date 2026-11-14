@@ -2,34 +2,196 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090e18">
-  <meta name="description" content="KICKOFF - مدیریت تورنمنت فوتبال">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080f1b">
+  <meta name="description" content="KICKOFF - مدیریت حرفه‌ای تورنمنت فوتبال">
   <title>KICKOFF | مدیریت تورنمنت</title>
-  <link rel="manifest" href="./manifest.json">
-  <link rel="icon" href="./logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="./">
-        <span class="brand-icon">K</span>
-        <span>KICK<span class="neon-text">OFF</span></span>
+    <aside class="sidebar">
+      <a class="brand" href="#">
+        <span class="brand-mark">K</span>
+        <span><b>KICKOFF</b><small>TOURNAMENT MANAGER</small></span>
       </a>
-      <span class="status-text"><span class="status-dot"></span> آماده مسابقه</span>
-    </header>
 
-    <main id="app">
-      <div class="loading">در حال بارگذاری KICKOFF...</div>
+      <div class="side-label">منوی اصلی</div>
+      <nav class="nav-menu">
+        <button class="nav-item active" data-page="home"><span>⌂</span> داشبورد</button>
+        <button class="nav-item" data-page="tournaments"><span>🏆</span> تورنمنت‌ها</button>
+        <button class="nav-item" data-page="history"><span>♛</span> تالار قهرمانان</button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="offline-status"><i></i> ذخیره‌سازی روی دستگاه</div>
+        <small>KICKOFF VERSION 5.0</small>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">FOOTBALL TOURNAMENT SYSTEM</div>
+          <h1 id="pageTitle">داشبورد</h1>
+        </div>
+        <button class="primary-btn" id="newTournamentBtn">＋ تورنمنت جدید</button>
+      </header>
+
+      <section id="homePage" class="page active">
+        <div class="hero">
+          <div class="hero-content">
+            <span class="hero-tag">WELCOME TO KICKOFF</span>
+            <h2>رقابت شروع می‌شود؛<br><em>قهرمان مشخص می‌شود.</em></h2>
+            <p>لیگ بساز، گروه‌بندی کن، مسابقات حذفی برگزار کن و قهرمان هر دوره را ثبت کن.</p>
+            <button class="hero-btn" id="heroNewBtn">ساخت تورنمنت جدید <span>←</span></button>
+          </div>
+          <div class="hero-ball">⚽</div>
+          <div class="hero-decoration">KICKOFF</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card"><span>تعداد تورنمنت‌ها</span><strong id="statTournaments">۰</strong><small>تمام دوره‌ها</small></div>
+          <div class="stat-card"><span>بازیکنان</span><strong id="statPlayers">۰</strong><small>در تورنمنت‌ها</small></div>
+          <div class="stat-card"><span>مسابقات انجام‌شده</span><strong id="statMatches">۰</strong><small>نتایج ثبت‌شده</small></div>
+          <div class="stat-card gold-stat"><span>قهرمانان ثبت‌شده</span><strong id="statChampions">۰</strong><small>تالار قهرمانان</small></div>
+        </div>
+
+        <div class="section-heading">
+          <div><span class="eyebrow">YOUR COMPETITIONS</span><h2>تورنمنت‌های اخیر</h2></div>
+          <button class="text-btn" data-goto="tournaments">مشاهده همه ←</button>
+        </div>
+        <div id="recentTournaments" class="tournament-grid"></div>
+      </section>
+
+      <section id="tournamentsPage" class="page">
+        <div class="section-heading page-heading">
+          <div><span class="eyebrow">ALL COMPETITIONS</span><h2>تورنمنت‌های من</h2></div>
+          <button class="primary-btn" id="listNewBtn">＋ ساخت تورنمنت</button>
+        </div>
+        <div id="allTournaments" class="tournament-grid"></div>
+      </section>
+
+      <section id="historyPage" class="page">
+        <div class="history-hero">
+          <div class="eyebrow">LEGENDS NEVER FORGET</div>
+          <h2>تالار قهرمانان <span>♛</span></h2>
+          <p>نام قهرمانان و تیم‌هایی که هر دوره به افتخار رسیدند.</p>
+        </div>
+        <div id="championList" class="champion-list"></div>
+      </section>
+
+      <section id="detailPage" class="page">
+        <button class="back-btn" id="backToTournaments">← بازگشت به تورنمنت‌ها</button>
+        <div id="tournamentDetail"></div>
+      </section>
     </main>
-
-    <footer class="footer">
-      <span>KICKOFF</span>
-      <span>ساخته‌شده برای رقابت‌های دوستانه ⚽</span>
-    </footer>
   </div>
 
-  <script src="./app.js?v=4" defer></script>
+  <!-- ساخت تورنمنت -->
+  <div class="modal-backdrop" id="createModal">
+    <div class="modal modal-large">
+      <div class="modal-head">
+        <div><span class="eyebrow">NEW COMPETITION</span><h2>ساخت تورنمنت جدید</h2></div>
+        <button class="icon-btn" data-close="createModal">×</button>
+      </div>
+      <form id="tournamentForm">
+        <div class="form-grid">
+          <label class="field full-field">نام تورنمنت
+            <input id="tournamentName" required maxlength="50" placeholder="مثلاً جام قهرمانان">
+          </label>
+
+          <label class="field">نوع مسابقات
+            <select id="tournamentType">
+              <option value="groups">مرحله گروهی</option>
+              <option value="league">لیگ</option>
+              <option value="knockout">حذفی</option>
+              <option value="combined">ترکیبی (گروهی + حذفی)</option>
+            </select>
+          </label>
+
+          <label class="field">تعداد بازیکنان
+            <select id="playerCount">
+              <option value="2">۲ بازیکن</option>
+              <option value="3">۳ بازیکن</option>
+              <option value="4" selected>۴ بازیکن</option>
+              <option value="5">۵ بازیکن</option>
+              <option value="6">۶ بازیکن</option>
+              <option value="7">۷ بازیکن</option>
+              <option value="8">۸ بازیکن</option>
+            </select>
+          </label>
+
+          <label class="field">تعداد تیم هر بازیکن
+            <select id="teamsPerPlayer">
+              <option value="1">۱ تیم</option>
+              <option value="2">۲ تیم</option>
+              <option value="3">۳ تیم</option>
+              <option value="4" selected>۴ تیم</option>
+              <option value="5">۵ تیم</option>
+              <option value="6">۶ تیم</option>
+              <option value="7">۷ تیم</option>
+              <option value="8">۸ تیم</option>
+            </select>
+          </label>
+
+          <label class="field" id="qualifyField">تعداد صعودی از هر گروه
+            <select id="qualifyCount">
+              <option value="1">۱ تیم</option>
+              <option value="2" selected>۲ تیم</option>
+              <option value="3">۳ تیم</option>
+              <option value="4">۴ تیم</option>
+            </select>
+          </label>
+
+          <label class="field" id="winPointsField">امتیاز برد
+            <input id="winPoints" type="number" min="0" max="20" value="3">
+          </label>
+          <label class="field" id="drawPointsField">امتیاز مساوی
+            <input id="drawPoints" type="number" min="0" max="20" value="1">
+          </label>
+        </div>
+
+        <div class="form-section">
+          <div class="section-heading compact-heading">
+            <div><span class="eyebrow">PLAYERS & TEAMS</span><h3>بازیکنان و تیم‌ها</h3></div>
+            <span class="mini-note">نام‌ها را دستی وارد کن</span>
+          </div>
+          <div id="playersFields" class="players-fields"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" data-close="createModal">انصراف</button>
+          <button type="submit" class="primary-btn">ساخت تورنمنت و شروع ←</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- تأیید حذف -->
+  <div class="modal-backdrop" id="confirmModal">
+    <div class="modal small-modal">
+      <div class="modal-head"><h2 id="confirmTitle">تأیید عملیات</h2><button class="icon-btn" data-close="confirmModal">×</button></div>
+      <p id="confirmMessage">آیا مطمئنی؟</p>
+      <div class="modal-actions">
+        <button class="secondary-btn" data-close="confirmModal">انصراف</button>
+        <button class="danger-btn" id="confirmAction">حذف</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- انتخاب برنده در تساوی -->
+  <div class="modal-backdrop" id="winnerModal">
+    <div class="modal small-modal">
+      <div class="modal-head"><h2>تعیین برنده</h2><button class="icon-btn" data-close="winnerModal">×</button></div>
+      <p>بازی مساوی شده است. کدام تیم در ضربات پنالتی برنده شد؟</p>
+      <div id="winnerChoices" class="winner-choices"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
