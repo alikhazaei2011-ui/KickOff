@@ -1,736 +1,797 @@
+"use strict";
 
-const STORAGE_KEY = "kickoff_tournaments_v2";
+const STORAGE_KEY = "kickoff_tournaments_v3";
 const CHAMPIONS_KEY = "kickoff_champions";
-
 const app = document.getElementById("app");
+
 let activeId = null;
+let activeTab = "overview";
 
-const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2));
-const fa = n => Number(n).toLocaleString("fa-IR");
+const uid = () =>
+  Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 
-function esc(v) {
-  return String(v ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  })[c]);
+const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+})[c]);
+
+function read(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) || [];
+  } catch {
+    return [];
+  }
 }
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-  catch { return []; }
+function write(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
 }
-function save(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+function tournaments() {
+  return read(STORAGE_KEY);
 }
+
 function champions() {
-  try { return JSON.parse(localStorage.getItem(CHAMPIONS_KEY)) || []; }
-  catch { return []; }
+  return read(CHAMPIONS_KEY);
 }
-function saveChampions(data) {
-  localStorage.setItem(CHAMPIONS_KEY, JSON.stringify(data));
+
+function getTournament(id = activeId) {
+  return tournaments().find(t => t.id === id);
 }
-function getTournament(id) {
-  return load().find(t => t.id === id);
+
+function saveTournament(tournament) {
+  const all = tournaments();
+  const index = all.findIndex(t => t.id === tournament.id);
+  if (index < 0) all.unshift(tournament);
+  else all[index] = tournament;
+  write(STORAGE_KEY, all);
 }
-function updateTournament(id, fn) {
-  const all = load();
-  const index = all.findIndex(t => t.id === id);
-  if (index < 0) return;
-  fn(all[index]);
-  save(all);
+
+function home() {
+  activeId = null;
+  activeTab = "overview";
   render();
 }
 
-function button(text, action, cls = "btn") {
-  return `<button class="${cls}" data-action="${action}">${text}</button>`;
-}
+function createTournament() {
+  const name = prompt("نام تورنمنت را وارد کن:");
+  if (name === null) return;
+  if (!name.trim()) return alert("نام تورنمنت خالی است.");
 
-/* ---------- CREATE FORM ---------- */
-
-function createForm() {
-  app.innerHTML = `
-    <section class="hero">
-      <span class="kicker">KICKOFF TOURNAMENT SYSTEM</span>
-      <h1>ساخت مسابقه جدید</h1>
-      <p>بازیکن‌ها و تیم‌ها رو وارد کن؛ گروه‌ها و مسابقات به‌صورت خودکار ساخته می‌شن.</p>
-    </section>
-
-    <form id="createForm" class="panel">
-      <div class="form-grid">
-        <div class="field">
-          <label>نام تورنمنت</label>
-          <input name="name" required placeholder="مثلاً جام دوستان">
-        </div>
-        <div class="field">
-          <label>تعداد بازیکنان</label>
-          <input name="playerCount" id="playerCountInput" type="number" min="2" value="4" required>
-        </div>
-        <div class="field">
-          <label>تعداد تیم هر بازیکن</label>
-          <input name="teamsPerPlayer" id="teamsPerPlayerInput" type="number" min="1" value="4" required>
-        </div>
-        <div class="field">
-          <label>تعداد تیم صعودکننده از هر گروه</label>
-          <input name="qualifiers" type="number" min="1" value="2" required>
-        </div>
-      </div>
-
-      <div class="notice">
-        تعداد گروه‌ها برابر تعداد تیم هر بازیکن خواهد بود.
-        در هر گروه دقیقاً یک تیم از هر بازیکن قرار می‌گیرد.
-        تعداد تیم‌های تمام بازیکنان باید برابر باشد.
-      </div>
-
-      <div id="playerFields"></div>
-
-      <div class="actions">
-        <button class="btn primary" type="submit">ساخت تورنمنت و گروه‌ها ⚽</button>
-        <button class="btn" type="button" data-action="home">بازگشت</button>
-      </div>
-    </form>
-  `;
-
-  updatePlayerFields();
-}
-
-function updatePlayerFields() {
-  const count = Math.max(2, Math.min(100, Number(document.getElementById("playerCountInput")?.value) || 2));
-  const teamCount = Math.max(1, Number(document.getElementById("teamsPerPlayerInput")?.value) || 1);
-  const container = document.getElementById("playerFields");
-  if (!container) return;
-
-  container.innerHTML = Array.from({length:count}, (_,i) => `
-    <div class="player-entry">
-      <h3>بازیکن ${fa(i+1)}</h3>
-      <div class="field">
-        <label>نام بازیکن</label>
-        <input name="playerName${i}" required placeholder="نام بازیکن ${i+1}">
-      </div>
-      <div class="field" style="margin-top:10px">
-        <label>نام ${fa(teamCount)} تیم این بازیکن</label>
-        <textarea name="playerTeams${i}" required placeholder="نام تیم‌ها را وارد کن؛ هر تیم در یک خط یا با کاما جدا شود"></textarea>
-      </div>
-    </div>
-  `).join("");
-}
-
-function createTournament(form) {
-  const data = new FormData(form);
-  const name = String(data.get("name") || "").trim();
-  const playerCount = Number(data.get("playerCount"));
-  const teamsPerPlayer = Number(data.get("teamsPerPlayer"));
-  const qualifiers = Number(data.get("qualifiers"));
-
-  if (!name || playerCount < 2 || teamsPerPlayer < 1 ||
-      qualifiers < 1 || qualifiers > playerCount) {
-    alert("اطلاعات تورنمنت صحیح نیست.");
-    return;
+  const count = Number(prompt("تعداد بازیکنان را وارد کن:", "4"));
+  if (!Number.isInteger(count) || count < 2 || count > 16) {
+    return alert("تعداد بازیکنان باید بین ۲ تا ۱۶ باشد.");
   }
 
   const players = [];
-  const allTeamNames = [];
+  let teamsPerPlayer = null;
 
-  for (let i=0; i<playerCount; i++) {
-    const playerName = String(data.get("playerName"+i) || "").trim();
-    const teams = String(data.get("playerTeams"+i) || "")
-      .split(/[\n,،]+/)
-      .map(x => x.trim())
-      .filter(Boolean);
+  for (let i = 0; i < count; i++) {
+    const playerName = prompt(`نام بازیکن ${i + 1}:`);
+    if (playerName === null) return;
+    if (!playerName.trim()) return alert("نام بازیکن نمی‌تواند خالی باشد.");
 
-    if (!playerName) {
-      alert(`نام بازیکن ${i+1} وارد نشده است.`);
-      return;
-    }
+    const raw = prompt(
+      `تیم‌های ${playerName} را با کاما جدا کن:\nمثال:\nReal Madrid, Barcelona, Bayern`
+    );
+    if (raw === null) return;
+
+    const teams = raw.split(",").map(x => x.trim()).filter(Boolean);
+
+    if (!teams.length) return alert("هر بازیکن باید حداقل یک تیم داشته باشد.");
+
+    if (teamsPerPlayer === null) teamsPerPlayer = teams.length;
+
     if (teams.length !== teamsPerPlayer) {
-      alert(`${playerName} باید دقیقاً ${teamsPerPlayer} تیم وارد کند. تعداد فعلی: ${teams.length}`);
-      return;
+      return alert(
+        `تعداد تیم‌های همه بازیکنان باید برابر باشد.\nتعداد مورد انتظار: ${teamsPerPlayer}`
+      );
     }
 
     players.push({
-      id:uid(),
-      name:playerName,
-      teams:teams.map((team,index) => ({
-        id:uid(),
-        name:team,
-        ownerId:null,
-        owner:playerName,
-        seed:index+1
+      id: uid(),
+      name: playerName.trim(),
+      teams: teams.map(team => ({
+        id: uid(),
+        name: team
       }))
     });
-
-    allTeamNames.push(...teams.map(x => x.toLowerCase()));
   }
 
-  if (new Set(players.map(p => p.name.toLowerCase())).size !== players.length) {
-    alert("نام بازیکنان نباید تکراری باشد.");
-    return;
+  const normalized = players.map(p => p.name.toLowerCase());
+  if (new Set(normalized).size !== normalized.length) {
+    return alert("نام بازیکنان نباید تکراری باشد.");
   }
-  if (new Set(allTeamNames).size !== allTeamNames.length) {
-    alert("نام تیم‌ها تکراری است. لطفاً نام تیم‌ها را یکتا وارد کن.");
-    return;
-  }
-
-  players.forEach(player => player.teams.forEach(team => team.ownerId = player.id));
-
-  const groups = Array.from({length:teamsPerPlayer}, (_,i) => ({
-    id:uid(),
-    name:"گروه " + String.fromCharCode(65+i),
-    teams:players.map(p => ({...p.teams[i]}))
-  }));
-
-  const matches = [];
-  groups.forEach(group => {
-    for (let i=0; i<group.teams.length; i++) {
-      for (let j=i+1; j<group.teams.length; j++) {
-        matches.push({
-          id:uid(),
-          groupId:group.id,
-          home:group.teams[i],
-          away:group.teams[j],
-          homeGoals:null,
-          awayGoals:null,
-          played:false
-        });
-      }
-    }
-  });
 
   const tournament = {
-    id:uid(),
-    name,
+    id: uid(),
+    name: name.trim(),
+    createdAt: new Date().toISOString(),
     players,
-    groups,
-    matches,
-    qualifiers,
-    points:{win:3,draw:1,loss:0},
-    knockoutRounds:[],
-    champion:null,
-    createdAt:new Date().toISOString()
+    teamsPerPlayer,
+    groups: [],
+    knockout: [],
+    champion: null,
+    status: "created",
+    points: { win: 3, draw: 1, loss: 0 },
+    qualifiers: 2
   };
 
-  const all = load();
-  all.unshift(tournament);
-  save(all);
+  saveTournament(tournament);
   activeId = tournament.id;
+  activeTab = "overview";
   render();
 }
 
-/* ---------- STANDINGS ---------- */
+function allTeams(t) {
+  return t.players.flatMap(player =>
+    player.teams.map(team => ({
+      id: team.id,
+      name: team.name,
+      ownerId: player.id,
+      ownerName: player.name
+    }))
+  );
+}
 
-function standings(tournament, group) {
+function createGroups(t) {
+  if (t.groups.length) {
+    return alert("گروه‌ها قبلاً ساخته شده‌اند.");
+  }
+
+  const teams = allTeams(t);
+  const groupCount = t.teamsPerPlayer;
+  const groups = [];
+
+  for (let i = 0; i < groupCount; i++) {
+    const groupTeams = t.players.map(player => ({
+      id: player.teams[i].id,
+      name: player.teams[i].name,
+      ownerId: player.id,
+      ownerName: player.name
+    }));
+
+    const matches = [];
+    for (let a = 0; a < groupTeams.length; a++) {
+      for (let b = a + 1; b < groupTeams.length; b++) {
+        matches.push({
+          id: uid(),
+          home: groupTeams[a],
+          away: groupTeams[b],
+          homeScore: null,
+          awayScore: null,
+          played: false
+        });
+      }
+    }
+
+    groups.push({
+      name: `گروه ${String.fromCharCode(65 + i)}`,
+      teams: groupTeams,
+      matches
+    });
+  }
+
+  t.groups = groups;
+  t.status = "groups";
+  saveTournament(t);
+  render();
+}
+
+function standings(group, t) {
   const rows = group.teams.map(team => ({
-    ...team, played:0, wins:0, draws:0, losses:0,
-    gf:0, ga:0, gd:0, points:0
+    ...team,
+    played: 0,
+    win: 0,
+    draw: 0,
+    loss: 0,
+    gf: 0,
+    ga: 0,
+    gd: 0,
+    pts: 0
   }));
 
-  tournament.matches
-    .filter(m => m.groupId === group.id && m.played)
-    .forEach(m => {
-      const h = rows.find(t => t.id === m.home.id);
-      const a = rows.find(t => t.id === m.away.id);
-      if (!h || !a) return;
+  group.matches.forEach(match => {
+    if (!match.played) return;
 
-      h.played++; a.played++;
-      h.gf += m.homeGoals; h.ga += m.awayGoals;
-      a.gf += m.awayGoals; a.ga += m.homeGoals;
+    const home = rows.find(x => x.id === match.home.id);
+    const away = rows.find(x => x.id === match.away.id);
+    if (!home || !away) return;
 
-      if (m.homeGoals > m.awayGoals) {
-        h.wins++; a.losses++;
-        h.points += tournament.points.win;
-        a.points += tournament.points.loss;
-      } else if (m.homeGoals < m.awayGoals) {
-        a.wins++; h.losses++;
-        a.points += tournament.points.win;
-        h.points += tournament.points.loss;
-      } else {
-        h.draws++; a.draws++;
-        h.points += tournament.points.draw;
-        a.points += tournament.points.draw;
-      }
-    });
+    const hs = Number(match.homeScore);
+    const as = Number(match.awayScore);
 
-  rows.forEach(t => t.gd = t.gf-t.ga);
+    home.played++;
+    away.played++;
+    home.gf += hs;
+    home.ga += as;
+    away.gf += as;
+    away.ga += hs;
 
-  return rows.sort((a,b) =>
-    b.points-a.points ||
-    b.gd-a.gd ||
-    b.gf-a.gf ||
+    if (hs > as) {
+      home.win++;
+      away.loss++;
+      home.pts += t.points.win;
+      away.pts += t.points.loss;
+    } else if (hs < as) {
+      away.win++;
+      home.loss++;
+      away.pts += t.points.win;
+      home.pts += t.points.loss;
+    } else {
+      home.draw++;
+      away.draw++;
+      home.pts += t.points.draw;
+      away.pts += t.points.draw;
+    }
+  });
+
+  rows.forEach(row => row.gd = row.gf - row.ga);
+
+  return rows.sort((a, b) =>
+    b.pts - a.pts ||
+    b.gd - a.gd ||
+    b.gf - a.gf ||
     a.name.localeCompare(b.name)
   );
 }
 
-function allGroupMatchesPlayed(t) {
-  return t.matches.length > 0 && t.matches.every(m => m.played);
-}
+function saveGroupResult(t, groupIndex, matchId) {
+  const group = t.groups[groupIndex];
+  const match = group.matches.find(m => m.id === matchId);
+  if (!match) return;
 
-/* ---------- KNOCKOUT ---------- */
+  const homeScore = document.getElementById(`h-${matchId}`).value;
+  const awayScore = document.getElementById(`a-${matchId}`).value;
 
-function pairTeams(teams) {
-  const pool = [...teams];
-  const pairs = [];
-
-  while (pool.length > 1) {
-    const first = pool.shift();
-    let index = pool.findIndex(t => t.ownerId !== first.ownerId);
-    if (index < 0) index = 0;
-    const second = pool.splice(index,1)[0];
-    pairs.push([first,second]);
+  if (homeScore === "" || awayScore === "") {
+    return alert("نتیجه هر دو تیم را وارد کن.");
   }
 
-  return {pairs, bye:pool[0] || null};
+  const hs = Number(homeScore);
+  const as = Number(awayScore);
+
+  if (!Number.isInteger(hs) || !Number.isInteger(as) || hs < 0 || as < 0) {
+    return alert("نتیجه باید عدد صحیح و غیرمنفی باشد.");
+  }
+
+  match.homeScore = hs;
+  match.awayScore = as;
+  match.played = true;
+  saveTournament(t);
+  render();
 }
 
-function startKnockout(tournament) {
-  const qualified = [];
+function groupsComplete(t) {
+  return t.groups.length > 0 &&
+    t.groups.every(g => g.matches.every(m => m.played));
+}
 
-  tournament.groups.forEach(group => {
-    const table = standings(tournament,group);
-    qualified.push(...table.slice(0,tournament.qualifiers));
+function startKnockout(t) {
+  if (!t.groups.length) return alert("ابتدا گروه‌ها را بساز.");
+  if (!groupsComplete(t)) return alert("ابتدا تمام بازی‌های گروهی را ثبت کن.");
+  if (t.knockout.length) return alert("مرحله حذفی قبلاً ساخته شده است.");
+
+  const qualifiers = Math.max(1, Math.min(8, Number(t.qualifiers) || 2));
+  let qualified = [];
+
+  t.groups.forEach(group => {
+    qualified.push(...standings(group, t).slice(0, qualifiers));
   });
 
   if (qualified.length < 2) {
-    alert("برای ساخت حذفی حداقل دو تیم باید صعود کنند.");
-    return;
+    return alert("برای مرحله حذفی حداقل دو تیم لازم است.");
   }
 
-  const {pairs,bye} = pairTeams(qualified);
-  const matches = pairs.map(([home,away]) => ({
-    id:uid(),home,away,homeGoals:null,awayGoals:null,winner:null
-  }));
+  // مرتب‌سازی اولیه بر اساس امتیاز و تفاضل گل
+  qualified.sort((a, b) =>
+    b.pts - a.pts || b.gd - a.gd || b.gf - a.gf
+  );
 
-  if (bye) {
-    matches.push({
-      id:uid(),home:bye,away:null,
-      homeGoals:null,awayGoals:null,winner:bye,
-      bye:true
+  const size = Math.pow(2, Math.ceil(Math.log2(qualified.length)));
+  const byes = size - qualified.length;
+  const seeded = [...qualified];
+
+  const firstRound = [];
+  const used = new Set();
+
+  // تیم‌های دارای BYE
+  for (let i = 0; i < byes; i++) {
+    const team = seeded[i];
+    used.add(team.id);
+    firstRound.push({
+      id: uid(),
+      home: team,
+      away: null,
+      homeScore: null,
+      awayScore: null,
+      winner: team,
+      played: true,
+      bye: true
     });
   }
 
-  tournament.knockoutRounds = [{
-    name:"مرحله اول حذفی",
-    matches
-  }];
+  const remaining = seeded.filter(team => !used.has(team.id));
 
-  advanceKnockout(tournament);
+  while (remaining.length >= 2) {
+    const home = remaining.shift();
+    let index = remaining.findIndex(team => team.ownerId !== home.ownerId);
+    if (index < 0) index = 0;
+    const away = remaining.splice(index, 1)[0];
+
+    firstRound.push({
+      id: uid(),
+      home,
+      away,
+      homeScore: null,
+      awayScore: null,
+      winner: null,
+      played: false,
+      bye: false
+    });
+  }
+
+  t.knockout = [firstRound];
+  t.status = "knockout";
+  saveTournament(t);
+  render();
 }
 
-function advanceKnockout(t) {
-  const rounds = t.knockoutRounds;
-  if (!rounds.length) return;
+function saveKnockoutResult(t, roundIndex, matchId) {
+  const round = t.knockout[roundIndex];
+  const match = round.find(m => m.id === matchId);
+  if (!match || !match.away) return;
 
-  const current = rounds[rounds.length-1];
-  if (!current.matches.every(m => m.winner)) return;
+  const hs = Number(document.getElementById(`kh-${matchId}`).value);
+  const as = Number(document.getElementById(`ka-${matchId}`).value);
 
-  const winners = current.matches.map(m => m.winner).filter(Boolean);
+  if (!Number.isInteger(hs) || !Number.isInteger(as) || hs < 0 || as < 0) {
+    return alert("نتیجه معتبر وارد کن.");
+  }
+
+  match.homeScore = hs;
+  match.awayScore = as;
+
+  if (hs === as) {
+    const choice = prompt(
+      `بازی مساوی شده است.\nبرنده را انتخاب کن:\n1 = ${match.home.name}\n2 = ${match.away.name}`
+    );
+    if (choice !== "1" && choice !== "2") return;
+    match.winner = choice === "1" ? match.home : match.away;
+  } else {
+    match.winner = hs > as ? match.home : match.away;
+  }
+
+  match.played = true;
+
+  // دورهای بعدی باید دوباره ساخته شوند
+  t.knockout = t.knockout.slice(0, roundIndex + 1);
+  saveTournament(t);
+  render();
+}
+
+function nextKnockoutRound(t) {
+  const current = t.knockout[t.knockout.length - 1];
+  if (!current || !current.every(m => m.played && m.winner)) {
+    return alert("ابتدا نتیجه تمام بازی‌های این دور را ثبت کن.");
+  }
+
+  const winners = current.map(m => m.winner);
 
   if (winners.length === 1) {
-    if (!t.champion) {
-      t.champion = winners[0];
-      t.finishedAt = new Date().toISOString();
-
-      const history = champions();
-      history.unshift({
-        tournament:t.name,
-        player:t.champion.owner,
-        team:t.champion.name,
-        date:t.finishedAt
-      });
-      saveChampions(history);
-    }
+    finishTournament(t, winners[0]);
     return;
   }
 
-  if (rounds.length > 1 && rounds[rounds.length-2].matches === current.matches) return;
-
-  const {pairs,bye} = pairTeams(winners);
-  const nextMatches = pairs.map(([home,away]) => ({
-    id:uid(),home,away,homeGoals:null,awayGoals:null,winner:null
-  }));
-
-  if (bye) {
-    nextMatches.push({
-      id:uid(),home:bye,away:null,
-      homeGoals:null,awayGoals:null,winner:bye,bye:true
-    });
+  const next = [];
+  for (let i = 0; i < winners.length; i += 2) {
+    if (!winners[i + 1]) {
+      next.push({
+        id: uid(),
+        home: winners[i],
+        away: null,
+        homeScore: null,
+        awayScore: null,
+        winner: winners[i],
+        played: true,
+        bye: true
+      });
+    } else {
+      next.push({
+        id: uid(),
+        home: winners[i],
+        away: winners[i + 1],
+        homeScore: null,
+        awayScore: null,
+        winner: null,
+        played: false,
+        bye: false
+      });
+    }
   }
 
-  const labels = {
-    2:"فینال",
-    4:"نیمه‌نهایی",
-    8:"یک‌چهارم نهایی",
-    16:"یک‌هشتم نهایی"
-  };
-
-  rounds.push({
-    name:labels[winners.length] || `مرحله ${fa(rounds.length+1)} حذفی`,
-    matches:nextMatches
-  });
-
-  if (nextMatches.every(m => m.winner)) advanceKnockout(t);
+  t.knockout.push(next);
+  saveTournament(t);
+  render();
 }
 
-/* ---------- RENDER COMPONENTS ---------- */
+function finishTournament(t, winner) {
+  t.champion = winner;
+  t.status = "finished";
 
-function groupHTML(t,g) {
-  const table = standings(t,g);
-  const matches = t.matches.filter(m => m.groupId === g.id);
+  const history = champions();
+  if (!history.some(item => item.tournamentId === t.id)) {
+    history.unshift({
+      id: uid(),
+      tournamentId: t.id,
+      tournamentName: t.name,
+      playerName: winner.ownerName,
+      teamName: winner.name,
+      date: new Date().toISOString()
+    });
+    write(CHAMPIONS_KEY, history);
+  }
+
+  saveTournament(t);
+  render();
+}
+
+function deleteTournament(id) {
+  if (!confirm("از حذف این تورنمنت مطمئنی؟")) return;
+  write(STORAGE_KEY, tournaments().filter(t => t.id !== id));
+  if (activeId === id) activeId = null;
+  render();
+}
+
+function setTab(tab) {
+  activeTab = tab;
+  render();
+}
+
+function tournamentCard(t) {
+  const status = {
+    created: "آماده شروع",
+    groups: "مرحله گروهی",
+    knockout: "مرحله حذفی",
+    finished: "پایان‌یافته"
+  }[t.status] || "در حال اجرا";
 
   return `
-    <section class="group-card">
-      <h3>${esc(g.name)}</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>تیم</th><th>بازی</th><th>برد</th><th>مساوی</th>
-            <th>باخت</th><th>گل</th><th>تفاضل</th><th>امتیاز</th>
-          </tr></thead>
-          <tbody>
-            ${table.map((r,i) => `
-              <tr class="${i<t.qualifiers?'qualified':''}">
-                <td>${esc(r.name)}<br><small>${esc(r.owner)}</small></td>
-                <td>${fa(r.played)}</td><td>${fa(r.wins)}</td>
-                <td>${fa(r.draws)}</td><td>${fa(r.losses)}</td>
-                <td>${fa(r.gf)}:${fa(r.ga)}</td>
-                <td>${fa(r.gd)}</td><td><strong>${fa(r.points)}</strong></td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
+    <article class="tournament-card">
+      <span class="tag">${status}</span>
+      <h3>${esc(t.name)}</h3>
+      <p class="muted">
+        ${t.players.length} بازیکن · ${t.players.length * t.teamsPerPlayer} تیم
+        · ${t.teamsPerPlayer} تیم برای هر بازیکن
+      </p>
+      <button class="btn" onclick="openTournament('${t.id}')">ورود به تورنمنت</button>
+      <button class="btn danger" onclick="deleteTournament('${t.id}')">حذف</button>
+    </article>
+  `;
+}
+
+function renderHome() {
+  const all = tournaments();
+  const playerCount = all.reduce((sum, t) => sum + t.players.length, 0);
+  const matches = all.reduce((sum, t) =>
+    sum + t.groups.reduce((s, g) => s + g.matches.filter(m => m.played).length, 0) +
+    t.knockout.reduce((s, r) => s + r.filter(m => m.played && !m.bye).length, 0), 0
+  );
+
+  const history = champions();
+
+  return `
+    <section class="hero">
+      <span class="eyebrow">FOOTBALL TOURNAMENT MANAGER</span>
+      <h1>وقتشه رقابت<br><span class="neon-text">شروع بشه!</span></h1>
+      <p>تورنمنت خودت رو بساز، تیم‌ها رو مدیریت کن و قهرمان رو مشخص کن.</p>
+      <button class="primary-btn" onclick="createTournament()">＋ ساخت تورنمنت جدید</button>
+    </section>
+
+    <div class="section-heading"><h2>نمای کلی</h2><span class="section-kicker">OVERVIEW</span></div>
+    <section class="stats-grid">
+      <div class="stat-card"><span>🏆 تورنمنت‌ها</span><strong>${all.length}</strong></div>
+      <div class="stat-card"><span>👥 بازیکنان ثبت‌شده</span><strong>${playerCount}</strong></div>
+      <div class="stat-card"><span>⚽ بازی‌های ثبت‌شده</span><strong>${matches}</strong></div>
+    </section>
+
+    <div class="section-heading"><h2>تورنمنت‌های من</h2></div>
+    ${all.length ? all.map(tournamentCard).join("") : `
+      <div class="empty">
+        <div style="font-size:38px">🏟️</div>
+        <h3>هنوز تورنمنتی نداری!</h3>
+        <p class="muted">اولین تورنمنت خودت رو بساز.</p>
+        <button class="btn" onclick="createTournament()">ساخت اولین تورنمنت</button>
       </div>
-      <div class="match-list">
-        ${matches.map(m => groupMatchHTML(m)).join("")}
+    `}
+
+    <section class="hall-section">
+      <div class="section-heading"><h2>👑 تالار قهرمانان</h2></div>
+      <div class="panel">
+        <p class="muted">قهرمانان دوره‌های مختلف KICKOFF</p>
+        ${history.length ? history.map(item => `
+          <div class="champion-card">
+            <strong>🏆 ${esc(item.playerName)}</strong>
+            <p>${esc(item.teamName)} · ${esc(item.tournamentName)}</p>
+            <p class="muted">${new Date(item.date).toLocaleDateString("fa-IR")}</p>
+          </div>
+        `).join("") : `<div class="empty">هنوز قهرمانی ثبت نشده است.</div>`}
       </div>
     </section>
   `;
 }
 
-function groupMatchHTML(m) {
+function openTournament(id) {
+  activeId = id;
+  activeTab = "overview";
+  render();
+}
+
+function renderOverview(t) {
   return `
-    <form class="match-card group-match-form" data-match="${m.id}">
-      <div class="match-line">
-        <span class="team-name">${esc(m.home.name)}</span>
-        <div class="score-box">
-          <input class="score-input" name="homeGoals" type="number" min="0" required value="${m.played?m.homeGoals:""}" aria-label="گل ${esc(m.home.name)}">
-          <b>:</b>
-          <input class="score-input" name="awayGoals" type="number" min="0" required value="${m.played?m.awayGoals:""}" aria-label="گل ${esc(m.away.name)}">
+    <div class="panel">
+      <h3>اطلاعات تورنمنت</h3>
+      <p class="muted">نام: ${esc(t.name)}</p>
+      <p class="muted">تعداد بازیکنان: ${t.players.length}</p>
+      <p class="muted">تعداد کل تیم‌ها: ${t.players.length * t.teamsPerPlayer}</p>
+      <p class="muted">تعداد گروه‌ها: ${t.teamsPerPlayer}</p>
+      <p class="muted">تیم‌های هر گروه: ${t.players.length}</p>
+    </div>
+
+    <div class="panel">
+      <h3>بازیکنان و تیم‌ها</h3>
+      ${t.players.map(p => `
+        <div class="player-form">
+          <h4>${esc(p.name)}</h4>
+          <p class="muted">${p.teams.map(team => esc(team.name)).join("، ")}</p>
         </div>
-        <span class="team-name">${esc(m.away.name)}</span>
+      `).join("")}
+    </div>
+
+    ${!t.groups.length ? `
+      <div class="panel">
+        <h3>ساخت مرحله گروهی</h3>
+        <p class="muted">سیستم به‌صورت خودکار گروه‌ها را می‌سازد؛ از هر بازیکن دقیقاً یک تیم در هر گروه قرار می‌گیرد.</p>
+        <button class="btn" onclick="createGroups(getTournament())">ساخت گروه‌ها</button>
       </div>
-      <div class="match-meta">${esc(m.home.owner)} مقابل ${esc(m.away.owner)} · ${m.played?"ثبت شده":"در انتظار نتیجه"}</div>
-      <div class="actions">
-        <button class="btn small primary" type="submit">ثبت نتیجه</button>
+    ` : `
+      <div class="panel">
+        <h3>تنظیمات صعود</h3>
+        <div class="field">
+          <label>تعداد تیم صعودکننده از هر گروه</label>
+          <select id="qualifiers" onchange="changeQualifiers()">
+            ${[1,2,3,4].map(n => `<option value="${n}" ${t.qualifiers === n ? "selected" : ""}>${n} تیم</option>`).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>امتیاز برد</label>
+          <input id="winPoints" type="number" min="0" value="${t.points.win}">
+        </div>
+        <div class="field">
+          <label>امتیاز مساوی</label>
+          <input id="drawPoints" type="number" min="0" value="${t.points.draw}">
+        </div>
+        <div class="field">
+          <label>امتیاز باخت</label>
+          <input id="lossPoints" type="number" min="0" value="${t.points.loss}">
+        </div>
+        <button class="btn secondary" onclick="saveSettings()">ذخیره تنظیمات</button>
       </div>
-    </form>
+    `}
+    ${t.champion ? `
+      <div class="champion-box">
+        <div class="trophy">🏆</div>
+        <h2>قهرمان تورنمنت</h2>
+        <h3>${esc(t.champion.name)}</h3>
+        <p>${esc(t.champion.ownerName)}</p>
+      </div>
+    ` : ""}
   `;
 }
 
-function knockoutHTML(t) {
-  if (!t.knockoutRounds.length) {
+function changeQualifiers() {
+  const t = getTournament();
+  t.qualifiers = Number(document.getElementById("qualifiers").value);
+  saveTournament(t);
+}
+
+function saveSettings() {
+  const t = getTournament();
+  t.points.win = Number(document.getElementById("winPoints").value);
+  t.points.draw = Number(document.getElementById("drawPoints").value);
+  t.points.loss = Number(document.getElementById("lossPoints").value);
+
+  if (![t.points.win, t.points.draw, t.points.loss].every(n => Number.isFinite(n) && n >= 0)) {
+    return alert("امتیازها باید عدد غیرمنفی باشند.");
+  }
+
+  saveTournament(t);
+  alert("تنظیمات ذخیره شد.");
+  render();
+}
+
+function renderGroups(t) {
+  if (!t.groups.length) {
+    return `<div class="empty">هنوز گروهی ساخته نشده است.</div>`;
+  }
+
+  return t.groups.map((group, index) => {
+    const table = standings(group, t);
+
     return `
-      <div class="panel">
-        <h3>مرحله حذفی</h3>
-        <p class="hint">بعد از ثبت تمام نتایج گروهی، تیم‌های صعودکننده وارد جدول حذفی می‌شن.</p>
-        <div class="actions">
-          <button class="btn primary" data-action="start-knockout" ${allGroupMatchesPlayed(t)?"":"disabled"}>
-            ساخت جدول حذفی
-          </button>
+      <section class="panel">
+        <h3>${esc(group.name)}</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>رتبه</th><th>تیم</th><th>بازیکن</th>
+                <th>بازی</th><th>برد</th><th>مساوی</th><th>باخت</th>
+                <th>تفاضل</th><th>امتیاز</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${table.map((row, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td>${esc(row.name)}</td>
+                  <td>${esc(row.ownerName)}</td>
+                  <td>${row.played}</td><td>${row.win}</td>
+                  <td>${row.draw}</td><td>${row.loss}</td>
+                  <td>${row.gd}</td><td><strong>${row.pts}</strong></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
         </div>
-        ${!allGroupMatchesPlayed(t)?'<p class="hint">ابتدا تمام بازی‌های گروهی را ثبت کن.</p>':""}
+        <h3 style="margin-top:20px">برنامه و نتایج بازی‌ها</h3>
+        ${group.matches.map(match => `
+          <div class="match-card">
+            <div class="match-team">${esc(match.home.name)}</div>
+            <div class="score-area">
+              <input class="score-input" id="h-${match.id}" type="number" min="0"
+                value="${match.played ? match.homeScore : ""}" placeholder="۰">
+              <span>:</span>
+              <input class="score-input" id="a-${match.id}" type="number" min="0"
+                value="${match.played ? match.awayScore : ""}" placeholder="۰">
+            </div>
+            <div class="match-team">${esc(match.away.name)}</div>
+            <div class="match-actions">
+              <button class="btn secondary" onclick="saveGroupResult(getTournament(),${index},'${match.id}')">ثبت نتیجه</button>
+            </div>
+          </div>
+        `).join("")}
+      </section>
+    `;
+  }).join("") + `
+    <div class="panel">
+      <h3>پایان مرحله گروهی</h3>
+      <p class="muted">پس از ثبت تمام نتایج، مرحله حذفی را شروع کن.</p>
+      <button class="btn gold" onclick="startKnockout(getTournament())">ساخت مرحله حذفی</button>
+    </div>
+  `;
+}
+
+function renderKnockout(t) {
+  if (!t.knockout.length) {
+    return `<div class="empty">مرحله حذفی هنوز شروع نشده است.</div>`;
+  }
+
+  let html = "";
+
+  t.knockout.forEach((round, roundIndex) => {
+    html += `<section class="panel"><h3>دور ${roundIndex + 1}</h3>`;
+
+    round.forEach(match => {
+      html += `
+        <div class="match-card">
+          <div class="match-team">${esc(match.home.name)}</div>
+          <div class="score-area">
+            ${match.bye ? `<span class="tag">استراحت / صعود مستقیم</span>` : `
+              <input class="score-input" id="kh-${match.id}" type="number" min="0"
+                value="${match.played ? match.homeScore : ""}" placeholder="۰">
+              <span>:</span>
+              <input class="score-input" id="ka-${match.id}" type="number" min="0"
+                value="${match.played ? match.awayScore : ""}" placeholder="۰">
+            `}
+          </div>
+          <div class="match-team">${match.away ? esc(match.away.name) : "—"}</div>
+          <div class="match-actions">
+            ${match.bye ? `<span class="muted">صعود مستقیم: ${esc(match.home.name)}</span>` : `
+              <button class="btn secondary" onclick="saveKnockoutResult(getTournament(),${roundIndex},'${match.id}')">ثبت نتیجه</button>
+            `}
+            ${match.winner ? `<p class="muted">برنده: ${esc(match.winner.name)}</p>` : ""}
+          </div>
+        </div>
+      `;
+    });
+
+    html += `</section>`;
+  });
+
+  if (t.champion) {
+    html += `
+      <div class="champion-box">
+        <div class="trophy">🏆</div>
+        <h2>قهرمان نهایی KICKOFF</h2>
+        <h3>${esc(t.champion.name)}</h3>
+        <p>${esc(t.champion.ownerName)}</p>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="panel">
+        <button class="btn gold" onclick="nextKnockoutRound(getTournament())">تکمیل این دور و رفتن به دور بعد</button>
       </div>
     `;
   }
 
-  return `
-    ${t.champion?`
-      <div class="champion-box">
-        <div class="trophy">🏆</div>
-        <h2>قهرمان KICKOFF</h2>
-        <h3>${esc(t.champion.name)}</h3>
-        <p>${esc(t.champion.owner)}</p>
-        <p class="hint">${esc(t.name)}</p>
-      </div>`:""}
-    ${t.knockoutRounds.map((round,ri) => `
-      <h3 class="round-title">${esc(round.name)}</h3>
-      <div class="match-list">
-        ${round.matches.map(m => knockoutMatchHTML(m,ri)).join("")}
-      </div>
-    `).join("")}
-  `;
+  return html;
 }
 
-function knockoutMatchHTML(m,ri) {
-  if (m.bye) {
-    return `<div class="match-card">
-      <div class="match-line">
-        <span class="team-name">${esc(m.home.name)}</span>
-        <span class="tag">استراحت و صعود مستقیم</span>
-        <span class="team-name">BYE</span>
-      </div>
-    </div>`;
+function render() {
+  if (!app) return;
+
+  const t = getTournament();
+
+  if (!t) {
+    app.innerHTML = renderHome();
+    return;
   }
 
-  return `
-    <form class="match-card knockout-form" data-round="${ri}" data-match="${m.id}">
-      <div class="match-line">
-        <span class="team-name">${esc(m.home.name)}</span>
-        <div class="score-box">
-          <input class="score-input" name="homeGoals" type="number" min="0" required value="${m.homeGoals ?? ""}">
-          <b>:</b>
-          <input class="score-input" name="awayGoals" type="number" min="0" required value="${m.awayGoals ?? ""}">
-        </div>
-        <span class="team-name">${esc(m.away.name)}</span>
-      </div>
-      ${m.homeGoals !== null && m.homeGoals === m.awayGoals ? `
-        <div class="field" style="margin-top:10px">
-          <label>برنده پس از پنالتی</label>
-          <select name="winner">
-            <option value="">انتخاب برنده</option>
-            <option value="home" ${m.winner?.id===m.home.id?"selected":""}>${esc(m.home.name)}</option>
-            <option value="away" ${m.winner?.id===m.away.id?"selected":""}>${esc(m.away.name)}</option>
-          </select>
-        </div>`:""}
-      ${m.winner?`<p class="match-meta">برنده: ${esc(m.winner.name)}</p>`:""}
-      <div class="actions">
-        <button class="btn small gold" type="submit">ثبت نتیجه و صعود</button>
-      </div>
-    </form>
-  `;
-}
+  const tabs = [
+    ["overview", "نمای کلی"],
+    ["groups", "گروه‌ها و جدول"],
+    ["knockout", "مرحله حذفی"]
+  ];
 
-/* ---------- TOURNAMENT DETAIL ---------- */
-
-function detail(t) {
   app.innerHTML = `
     <div class="section-heading">
       <div>
-        <span class="kicker">TOURNAMENT CENTER</span>
+        <span class="section-kicker">KICKOFF TOURNAMENT</span>
         <h2>${esc(t.name)}</h2>
-        <p class="hint">${fa(t.players.length)} بازیکن · ${fa(t.players.length*t.groups.length)} تیم · ${fa(t.groups.length)} گروه</p>
       </div>
-      <button class="btn" data-action="home">خانه</button>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card"><span>بازیکنان</span><strong>${fa(t.players.length)}</strong></div>
-      <div class="stat-card"><span>تیم‌ها</span><strong>${fa(t.players.length*t.groups.length)}</strong></div>
-      <div class="stat-card"><span>بازی‌های ثبت‌شده</span><strong>${fa(t.matches.filter(m=>m.played).length)}</strong></div>
+      <button class="btn secondary" onclick="home()">بازگشت</button>
     </div>
 
     <div class="tabs">
-      <button class="btn tab active" data-action="show-groups">مرحله گروهی</button>
-      <button class="btn tab" data-action="show-knockout">مرحله حذفی</button>
-      <button class="btn tab" data-action="show-teams">تیم‌ها و بازیکنان</button>
+      ${tabs.map(([key, label]) => `
+        <button class="tab ${activeTab === key ? "active" : ""}" onclick="setTab('${key}')">${label}</button>
+      `).join("")}
     </div>
 
-    <div id="detailContent">
-      ${t.groups.map(g => groupHTML(t,g)).join("")}
-    </div>
+    ${activeTab === "overview" ? renderOverview(t) : ""}
+    ${activeTab === "groups" ? renderGroups(t) : ""}
+    ${activeTab === "knockout" ? renderKnockout(t) : ""}
 
-    <div class="actions">
-      <button class="btn danger" data-action="delete-tournament">حذف تورنمنت</button>
-    </div>
-  `;
-}
-
-/* ---------- HOME ---------- */
-
-function home() {
-  const all = load();
-  const totalPlayers = new Set(all.flatMap(t=>t.players.map(p=>p.name))).size;
-  const totalMatches = all.reduce((sum,t)=>sum+t.matches.filter(m=>m.played).length,0);
-  const history = champions();
-
-  app.innerHTML = `
-    <section class="hero">
-      <span class="kicker">FOOTBALL TOURNAMENT MANAGER</span>
-      <h1>وقتشه رقابت <span class="neon-text">شروع بشه!</span></h1>
-      <p>تیم‌ها رو وارد کن، گروه‌ها رو بساز، نتایج رو ثبت کن و قهرمان رو مشخص کن.</p>
-      <button class="btn primary" data-action="create">＋ ساخت تورنمنت جدید</button>
-    </section>
-
-    <div class="stats-grid">
-      <div class="stat-card"><span>تورنمنت‌ها</span><strong>${fa(all.length)}</strong></div>
-      <div class="stat-card"><span>بازیکنان</span><strong>${fa(totalPlayers)}</strong></div>
-      <div class="stat-card"><span>نتایج ثبت‌شده</span><strong>${fa(totalMatches)}</strong></div>
-    </div>
-
-    <div class="section-heading"><h2>تورنمنت‌های من</h2></div>
-    <div class="tournament-list">
-      ${all.length ? all.map(t=>`
-        <article class="tournament-card">
-          <div>
-            <span class="tag">${t.champion?"پایان‌یافته":"در حال برگزاری"}</span>
-            <h3>${esc(t.name)}</h3>
-            <p>${fa(t.players.length)} بازیکن · ${fa(t.groups.length)} گروه · ${fa(t.players.length*t.groups.length)} تیم</p>
-          </div>
-          <button class="btn primary" data-action="open" data-id="${t.id}">مدیریت مسابقات</button>
-        </article>
-      `).join(""):'<div class="empty">هنوز تورنمنتی نساختی.<br>اولین مسابقه‌ات رو شروع کن!</div>'}
-    </div>
-
-    <div class="section-heading"><h2>تالار قهرمانان 👑</h2></div>
-    <div class="hall-list">
-      ${history.length?history.map(c=>`
-        <div class="hall-item">
-          🏆 <strong>${esc(c.team)}</strong>
-          <p class="hint">بازیکن: ${esc(c.player)} · تورنمنت: ${esc(c.tournament)}</p>
-        </div>
-      `).join(""):'<div class="empty">هنوز قهرمانی ثبت نشده است.</div>'}
+    <div class="panel">
+      <button class="btn danger" onclick="deleteTournament('${t.id}')">حذف این تورنمنت</button>
     </div>
   `;
 }
 
-/* ---------- MAIN RENDER ---------- */
-
-function render() {
-  if (activeId) {
-    const t = getTournament(activeId);
-    if (t) detail(t);
-    else { activeId=null; home(); }
-  } else {
-    home();
-  }
-}
-
-/* ---------- EVENTS ---------- */
-
-app.addEventListener("click", event => {
-  const btn = event.target.closest("[data-action]");
-  if (!btn) return;
-
-  const action = btn.dataset.action;
-
-  if (action === "create") createForm();
-  if (action === "home") { activeId=null; render(); }
-
-  if (action === "open") {
-    activeId=btn.dataset.id;
-    render();
-  }
-
-  if (action === "show-groups") {
-    const t=getTournament(activeId);
-    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById("detailContent").innerHTML =
-      t.groups.map(g=>groupHTML(t,g)).join("");
-  }
-
-  if (action === "show-knockout") {
-    const t=getTournament(activeId);
-    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById("detailContent").innerHTML=knockoutHTML(t);
-  }
-
-  if (action === "show-teams") {
-    const t=getTournament(activeId);
-    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById("detailContent").innerHTML=`
-      <div class="panel">
-        ${t.players.map(p=>`
-          <div class="player-entry">
-            <h3>${esc(p.name)}</h3>
-            <p>${p.teams.map(team=>esc(team.name)).join("، ")}</p>
-          </div>
-        `).join("")}
-      </div>`;
-  }
-
-  if (action === "start-knockout") {
-    updateTournament(activeId,t=>startKnockout(t));
-  }
-
-  if (action === "delete-tournament") {
-    if (!confirm("این تورنمنت و نتایج آن حذف شود؟")) return;
-    save(load().filter(t=>t.id!==activeId));
-    activeId=null;
-    render();
-  }
+// دسترسی توابع موردنیاز دکمه‌های HTML
+Object.assign(window, {
+  createTournament,
+  openTournament,
+  deleteTournament,
+  home,
+  setTab,
+  createGroups,
+  getTournament,
+  saveGroupResult,
+  saveKnockoutResult,
+  startKnockout,
+  nextKnockoutRound,
+  changeQualifiers,
+  saveSettings
 });
-
-app.addEventListener("change", event => {
-  if (event.target.id==="playerCountInput" || event.target.id==="teamsPerPlayerInput") {
-    updatePlayerFields();
-  }
-});
-
-app.addEventListener("submit", event => {
-  event.preventDefault();
-  const form=event.target;
-
-  if (form.id==="createForm") {
-    createTournament(form);
-    return;
-  }
-
-  if (form.classList.contains("group-match-form")) {
-    const id=form.dataset.match;
-    const fd=new FormData(form);
-    const hg=Number(fd.get("homeGoals"));
-    const ag=Number(fd.get("awayGoals"));
-
-    if (!Number.isInteger(hg)||!Number.isInteger(ag)||hg<0||ag<0) {
-      alert("نتیجه باید عدد صحیح و مثبت باشد.");
-      return;
-    }
-
-    updateTournament(activeId,t=>{
-      const m=t.matches.find(x=>x.id===id);
-      if (!m) return;
-      m.homeGoals=hg;
-      m.awayGoals=ag;
-      m.played=true;
-    });
-    return;
-  }
-
-  if (form.classList.contains("knockout-form")) {
-    const id=form.dataset.match;
-    const roundIndex=Number(form.dataset.round);
-    const fd=new FormData(form);
-    const hg=Number(fd.get("homeGoals"));
-    const ag=Number(fd.get("awayGoals"));
-
-    if (!Number.isInteger(hg)||!Number.isInteger(ag)||hg<0||ag<0) {
-      alert("نتیجه صحیح وارد کن.");
-      return;
-    }
-
-    updateTournament(activeId,t=>{
-      const match=t.knockoutRounds[roundIndex]?.matches.find(x=>x.id===id);
-      if (!match) return;
-
-      let winner=null;
-      if (hg>ag) winner=match.home;
-      else if (ag>hg) winner=match.away;
-      else {
-        const choice=fd.get("winner");
-        if (!choice) {
-          alert("بازی مساوی شده؛ برنده پنالتی را انتخاب کن.");
-          return;
-        }
-        winner=choice==="home"?match.home:match.away;
-      }
-
-      match.homeGoals=hg;
-      match.awayGoals=ag;
-      match.winner=winner;
-
-      t.knockoutRounds=t.knockoutRounds.slice(0,roundIndex+1);
-      t.champion=null;
-      advanceKnockout(t);
-    });
-  }
-});
-
-/* ---------- START ---------- */
 
 render();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js")
-      .catch(error => console.error("Service Worker:",error));
+    navigator.serviceWorker.register("./sw.js").catch(error => {
+      console.error("Service Worker:", error);
+    });
   });
-}
+                   }
