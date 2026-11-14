@@ -1,7 +1,9 @@
+
 "use strict";
 
 /* =====================================
    KICKOFF - Tournament Manager
+   Yellow & Red Cards Update
 ===================================== */
 
 const STORAGE_KEY = "kickoff_tournaments_v3";
@@ -52,6 +54,8 @@ function escapeHTML(value) {
 
 function showToast(message) {
   const toast = document.getElementById("toast");
+  if (!toast) return;
+
   toast.textContent = message;
   toast.classList.add("show");
 
@@ -80,6 +84,10 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id)?.classList.remove("show");
+}
+
+function cardValue(match, key) {
+  return Math.max(0, Number(match?.[key]) || 0);
 }
 
 /* =====================================
@@ -113,8 +121,10 @@ function navigate(page) {
     history: "تالار قهرمانان"
   };
 
-  document.getElementById("pageTitle").textContent =
-    titles[page] || "KICKOFF";
+  const pageTitle = document.getElementById("pageTitle");
+  if (pageTitle) {
+    pageTitle.textContent = titles[page] || "KICKOFF";
+  }
 
   if (page === "home") renderHome();
   if (page === "tournaments") renderTournaments();
@@ -212,6 +222,10 @@ function roundRobin(teams, prefix) {
           away: away.id,
           homeScore: null,
           awayScore: null,
+          homeYellow: 0,
+          awayYellow: 0,
+          homeRed: 0,
+          awayRed: 0,
           winner: null,
           played: false
         });
@@ -465,6 +479,10 @@ function createKnockoutRound(teams) {
       away: away?.id || null,
       homeScore: null,
       awayScore: null,
+      homeYellow: 0,
+      awayYellow: 0,
+      homeRed: 0,
+      awayRed: 0,
       winner: null,
       played: false,
       bye: !home || !away
@@ -532,6 +550,10 @@ function buildNextRound(tournament) {
       away: winners[i + 1] || null,
       homeScore: null,
       awayScore: null,
+      homeYellow: 0,
+      awayYellow: 0,
+      homeRed: 0,
+      awayRed: 0,
       winner: winners[i + 1] ? null : winners[i],
       played: !winners[i + 1],
       bye: !winners[i + 1]
@@ -546,6 +568,125 @@ function buildNextRound(tournament) {
   if (nextMatches.every(match => match.played)) {
     buildNextRound(tournament);
   }
+}
+
+/* =====================================
+   سیستم کارت‌ها
+===================================== */
+
+function readMatchCards(matchId) {
+  const read = key => {
+    const input = document.querySelector(
+      `[data-card-${key}="${matchId}"]`
+    );
+
+    const value = input ? Number(input.value || 0) : 0;
+
+    if (
+      !Number.isInteger(value) ||
+      value < 0 ||
+      value > 20
+    ) {
+      return null;
+    }
+
+    return value;
+  };
+
+  const cards = {
+    homeYellow: read("home-yellow"),
+    awayYellow: read("away-yellow"),
+    homeRed: read("home-red"),
+    awayRed: read("away-red")
+  };
+
+  if (Object.values(cards).some(value => value === null)) {
+    showToast("تعداد کارت باید عددی بین صفر تا ۲۰ باشد.");
+    return null;
+  }
+
+  return cards;
+}
+
+function saveMatchCards(match, cards) {
+  match.homeYellow = cards.homeYellow;
+  match.awayYellow = cards.awayYellow;
+  match.homeRed = cards.homeRed;
+  match.awayRed = cards.awayRed;
+}
+
+function renderCardInputs(match, disabled = false) {
+  const lock = disabled ? "disabled" : "";
+
+  return `
+    <div class="match-cards">
+
+      <div class="team-card-inputs">
+        <span class="card-team-label">کارت تیم اول</span>
+
+        <label>
+          🟨
+          <input
+            type="number"
+            min="0"
+            max="20"
+            inputmode="numeric"
+            aria-label="کارت زرد تیم اول"
+            data-card-home-yellow="${match.id}"
+            value="${cardValue(match, "homeYellow")}"
+            ${lock}
+          >
+        </label>
+
+        <label>
+          🟥
+          <input
+            type="number"
+            min="0"
+            max="20"
+            inputmode="numeric"
+            aria-label="کارت قرمز تیم اول"
+            data-card-home-red="${match.id}"
+            value="${cardValue(match, "homeRed")}"
+            ${lock}
+          >
+        </label>
+      </div>
+
+      <div class="team-card-inputs">
+        <span class="card-team-label">کارت تیم دوم</span>
+
+        <label>
+          🟨
+          <input
+            type="number"
+            min="0"
+            max="20"
+            inputmode="numeric"
+            aria-label="کارت زرد تیم دوم"
+            data-card-away-yellow="${match.id}"
+            value="${cardValue(match, "awayYellow")}"
+            ${lock}
+          >
+        </label>
+
+        <label>
+          🟥
+          <input
+            type="number"
+            min="0"
+            max="20"
+            inputmode="numeric"
+            aria-label="کارت قرمز تیم دوم"
+            data-card-away-red="${match.id}"
+            value="${cardValue(match, "awayRed")}"
+            ${lock}
+          >
+        </label>
+      </div>
+
+    </div>
+  `;
 }
 
 /* =====================================
@@ -568,7 +709,9 @@ function getStandings(tournament, teamIds, matches) {
       loss: 0,
       gf: 0,
       ga: 0,
-      points: 0
+      points: 0,
+      yellow: 0,
+      red: 0
     };
   });
 
@@ -598,6 +741,13 @@ function getStandings(tournament, teamIds, matches) {
     away.gf += as;
     away.ga += hs;
 
+    // جمع کارت‌های هر تیم
+    home.yellow += cardValue(match, "homeYellow");
+    away.yellow += cardValue(match, "awayYellow");
+
+    home.red += cardValue(match, "homeRed");
+    away.red += cardValue(match, "awayRed");
+
     if (hs > as) {
       home.win++;
       away.loss++;
@@ -611,8 +761,7 @@ function getStandings(tournament, teamIds, matches) {
       away.points += tournament.winPoints;
 
     } else {
-      // مساوی در گروهی و لیگ:
-      // هر دو تیم امتیاز مساوی دریافت می‌کنند.
+      // مساوی در گروهی و لیگ مجاز است.
       home.draw++;
       away.draw++;
 
@@ -629,6 +778,8 @@ function getStandings(tournament, teamIds, matches) {
     b.points - a.points ||
     b.diff - a.diff ||
     b.gf - a.gf ||
+    a.red - b.red ||
+    a.yellow - b.yellow ||
     a.name.localeCompare(b.name, "fa")
   );
 }
@@ -655,6 +806,8 @@ function renderStandings(
             <th>گل زده</th>
             <th>تفاضل</th>
             <th>امتیاز</th>
+            <th>🟨</th>
+            <th>🟥</th>
           </tr>
         </thead>
 
@@ -670,11 +823,18 @@ function renderStandings(
               <td>${fa(row.gf)}</td>
               <td>${fa(row.diff)}</td>
               <td><b>${fa(row.points)}</b></td>
+              <td>${fa(row.yellow)}</td>
+              <td>${fa(row.red)}</td>
             </tr>
           `).join("")}
         </tbody>
       </table>
     </div>
+
+    <p class="mini-note">
+      ترتیب رتبه‌بندی: امتیاز، تفاضل گل، گل زده،
+      کارت قرمز کمتر و سپس کارت زرد کمتر.
+    </p>
   `;
 }
 
@@ -683,7 +843,6 @@ function renderStandings(
 ===================================== */
 
 function findMatch(tournament, matchId) {
-  // مسابقات گروهی
   for (const group of tournament.groups || []) {
     const match = group.matches.find(
       m => m.id === matchId
@@ -698,7 +857,6 @@ function findMatch(tournament, matchId) {
     }
   }
 
-  // مسابقات لیگ
   const league = (tournament.leagueMatches || []).find(
     m => m.id === matchId
   );
@@ -710,7 +868,6 @@ function findMatch(tournament, matchId) {
     };
   }
 
-  // مسابقات حذفی
   for (const round of tournament.knockoutRounds || []) {
     const match = round.matches.find(
       m => m.id === matchId
@@ -775,13 +932,9 @@ function saveMatchScore(matchId) {
     return;
   }
 
-  /*
-    نکته مهم:
-    فقط مسابقه‌ای که stage آن knockout است
-    نیاز به تعیین برنده در صورت مساوی دارد.
+  const cards = readMatchCards(matchId);
 
-    گروهی و لیگ اجازه نتیجه مساوی دارند.
-  */
+  if (!cards) return;
 
   const isKnockoutMatch = found.stage === "knockout";
 
@@ -789,7 +942,8 @@ function saveMatchScore(matchId) {
     pendingTie = {
       matchId,
       homeScore,
-      awayScore
+      awayScore,
+      cards
     };
 
     showWinnerChoices(tournament, match);
@@ -807,8 +961,8 @@ function saveMatchScore(matchId) {
   match.awayScore = awayScore;
   match.played = true;
 
-  // فقط پس از ثبت نتیجه مسابقه حذفی،
-  // تیم برنده به دور بعد می‌رود.
+  saveMatchCards(match, cards);
+
   if (isKnockoutMatch) {
     buildNextRound(tournament);
   }
@@ -817,7 +971,7 @@ function saveMatchScore(matchId) {
 
   renderDetail(tournament);
 
-  showToast("نتیجه مسابقه ثبت شد.");
+  showToast("نتیجه و کارت‌های مسابقه ثبت شد.");
 }
 
 /* =====================================
@@ -855,10 +1009,19 @@ function chooseTieWinner(winnerId) {
 
   if (!found || found.stage !== "knockout") return;
 
+  if (
+    winnerId !== found.match.home &&
+    winnerId !== found.match.away
+  ) {
+    return;
+  }
+
   found.match.homeScore = pendingTie.homeScore;
   found.match.awayScore = pendingTie.awayScore;
   found.match.winner = winnerId;
   found.match.played = true;
+
+  saveMatchCards(found.match, pendingTie.cards);
 
   pendingTie = null;
 
@@ -870,7 +1033,7 @@ function chooseTieWinner(winnerId) {
 
   renderDetail(tournament);
 
-  showToast("برنده مسابقه مشخص شد.");
+  showToast("برنده و کارت‌های مسابقه ثبت شدند.");
 }
 
 /* =====================================
@@ -1048,10 +1211,12 @@ function renderMatch(match, tournament) {
         ${escapeHTML(awayName)}
       </div>
 
+      ${renderCardInputs(match, tournament.status === "done")}
+
       ${tournament.status === "done"
         ? `<span class="match-status">پایان‌یافته</span>`
         : `<button class="save-score" data-save-match="${match.id}">
-            ثبت نتیجه
+            ثبت نتیجه و کارت‌ها
           </button>`
       }
 
@@ -1112,7 +1277,7 @@ function renderGroupSection(tournament) {
           : `
             <p class="mini-note">
               بعد از پایان تمام مسابقات گروهی،
-              دو تیم برتر هر گروه به مرحله حذفی صعود می‌کنند.
+              تیم‌های برتر هر گروه به مرحله حذفی صعود می‌کنند.
             </p>
           `
         }
@@ -1250,14 +1415,16 @@ function renderBracket(tournament) {
                           data-score-away="${match.id}"
                         >
 
-                        <button
-                          class="save-score"
-                          data-save-match="${match.id}"
-                        >
-                          ثبت
-                        </button>
-
                       </div>
+
+                      ${renderCardInputs(match)}
+
+                      <button
+                        class="save-score"
+                        data-save-match="${match.id}"
+                      >
+                        ثبت نتیجه و کارت‌ها
+                      </button>
                     `
                     : ""
                   }
@@ -1266,6 +1433,18 @@ function renderBracket(tournament) {
                     ? `<small class="match-status">صعود مستقیم</small>`
                     : ""
                   }
+
+                  ${match.played && !match.bye ? `
+                    <div class="match-card-summary">
+                      🟨 ${fa(cardValue(match, "homeYellow"))}
+                      /
+                      ${fa(cardValue(match, "awayYellow"))}
+                      &nbsp;&nbsp;
+                      🟥 ${fa(cardValue(match, "homeRed"))}
+                      /
+                      ${fa(cardValue(match, "awayRed"))}
+                    </div>
+                  ` : ""}
 
                 </div>
               `;
