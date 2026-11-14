@@ -392,3 +392,17 @@ input:focus {
   outline: none !important;
   box-shadow: 0 0 0 3px #b7ff5220 !important;
 }
+/* KICKOFF - FORCE VAZIRMATN FONT */
+
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap');
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+option,
+* {
+  font-family: "Vazirmatn", sans-serif !important;
+}
