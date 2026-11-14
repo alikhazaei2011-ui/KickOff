@@ -1,3 +1,4 @@
+
 :root {
   --bg:#080f1b;
   --panel:#111e2e;
@@ -50,7 +51,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .hero-btn{margin-top:10px}
 .hero-btn span{margin-right:9px}
 .hero-ball{position:absolute;left:10%;top:50%;transform:translateY(-50%);color:#b7ff52;opacity:.2}
-.hero-ball svg{width:clamp(110px,17vw,180px);height:auto;stroke-width:.8}
+.hero-ball svg{width:clamp(110px,17vw,180px);height:auto;stroke-width:1.2}
 .hero-decoration{position:absolute;bottom:-25px;left:25px;color:#ffffff08;font-size:75px;font-weight:900;letter-spacing:5px}
 
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0 38px}
@@ -72,6 +73,44 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .status-pill.done{color:var(--gold);background:#e6bd6718;border-color:#e6bd6730}
 .card-icon{display:grid;place-items:center;width:43px;height:43px;border-radius:14px;background:#b7ff5210;color:var(--green);border:1px solid #b7ff5225}
 .app-icon{display:inline-block;vertical-align:middle;flex-shrink:0}
+
+/* ظاهر تمیزتر آیکن توپ */
+.app-icon circle,
+.app-icon path{
+  vector-effect:non-scaling-stroke;
+}
+.card-icon .app-icon{
+  width:27px;
+  height:27px;
+  stroke-width:1.5;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  filter:drop-shadow(0 1px 2px #b7ff5220);
+}
+.hero-ball .app-icon{
+  stroke-width:1.15;
+  filter:drop-shadow(0 0 8px #b7ff5225);
+}
+
+/* نمایش خواناتر نام تیم و بازیکن */
+.match-team,
+.bracket-team,
+td.team-name{
+  line-height:1.9;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.match-team{
+  font-weight:700;
+  letter-spacing:-.15px;
+}
+.bracket-team .team-name-wrap{
+  line-height:1.9;
+}
+.bracket-team .team-name-wrap>span{
+  min-width:0;
+  overflow-wrap:anywhere;
+}
 .tournament-card h3{font-size:16px;margin:15px 0 9px;overflow-wrap:anywhere}
 .card-meta{color:var(--muted);font-size:10px;display:flex;gap:15px;flex-wrap:wrap}
 .card-meta span{display:inline-flex;align-items:center;gap:5px}
@@ -127,8 +166,7 @@ tr.qualified td{color:var(--green);background:#b7ff5209}
 .match-team:last-of-type{text-align:left}
 .score-inputs{display:flex;gap:5px;align-items:center}
 .score-inputs input{width:42px;text-align:center;padding:8px 4px}
-input,select{background:#0b1624;color:var(--text);border:1px solid #30445a;border-radius:9px;padding:10px 11px;width:100%;min-width:0}
-input::placeholder{color:#65768a}
+.match-card>.save-score{grid-column:1/-1}
 .save-score{background:#b7ff5215;border:1px solid #b7ff5240;color:var(--green);border-radius:8px;padding:9px 12px;font-size:10px;transition:.2s}
 .save-score:hover{background:#b7ff5225}
 .match-status{color:var(--muted);font-size:9px;text-align:center}
@@ -258,4 +296,4 @@ input::placeholder{color:#65768a}
   .section-heading h2{font-size:16px}
   .match-cards{flex-direction:column}
   .card-team-label{width:auto;min-width:80px}
-                                 }
+}
